@@ -15,11 +15,14 @@ let poseLabel;
 var collectedPoses = [];
 var averages = [];
 
+
 function setup() {
-   createCanvas(640, 480);
-//    video = createCapture(VIDEO);
-  video = createVideo(['gait1.mp4'], videoReady);
-  video.hide();
+  createCanvas(640, 480);
+//  video = createCapture(VIDEO);
+  // video = createVideo(['gait1.mp4'], videoReady);
+  // video.hide();
+  // Gets element from html to classify 
+  var video = document.getElementById("video");
   poseNet = ml5.poseNet(video, modelLoaded);
   poseNet.on('pose', gotPoses);
 
@@ -80,7 +83,6 @@ function classifyPose() {
 // Function to collect all the results into an array of poses 
 function collectResult(error, result) {
     collectedPoses.push(result);
-    console.log(collectedPoses);
 }
 
 function gotResult() {
@@ -150,36 +152,26 @@ function modelLoaded() {
   console.log('poseNet ready');
 }
 
-function draw() {
-  push();
-  translate(video.width, 0);
-  scale(-1, 1);
-  image(video, 0, 0, video.width, video.height);
-
+function draw(){
+  image(video,0,0)
   if (pose) {
+    // key points in skeleton 
+    for (let i = 0; i < pose.keypoints.length; i++) {
+      let x = pose.keypoints[i].position.x;
+      let y = pose.keypoints[i].position.y;
+      fill(0,255,0);
+      ellipse(x,y,16,16);
+    }
+
+    // Lines in skeleton
     for (let i = 0; i < skeleton.length; i++) {
       let a = skeleton[i][0];
       let b = skeleton[i][1];
       strokeWeight(2);
-      stroke(0);
-
+      stroke(255);
       line(a.position.x, a.position.y, b.position.x, b.position.y);
     }
-    for (let i = 0; i < pose.keypoints.length; i++) {
-      let x = pose.keypoints[i].position.x;
-      let y = pose.keypoints[i].position.y;
-      fill(0);
-      stroke(255);
-      ellipse(x, y, 16, 16);
-    }
   }
-  pop();
-
-  fill(255, 0, 255);
-  noStroke();
-  textSize(512);
-  textAlign(CENTER, CENTER);
-  text(poseLabel, width / 2, height / 2);
 }
 
   
