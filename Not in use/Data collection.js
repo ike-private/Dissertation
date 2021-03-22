@@ -8,7 +8,6 @@ let targetLabel = 'Normal gait';
 let state = 'waiting';
 
 
-
 async function keyPressed() {
     if (key == 'r') {
       neuralNetwork.normalizeData();
@@ -36,14 +35,14 @@ function delay(time){
   }
 
 
-function preload(){
-    // Use series of images to get keypoints 
-    img = loadImage('MS gait frames/ezgif-frame-001.jpg');
-}
+
 // Upload video to get skeleton
 function setup(){
   createCanvas(1200,800);
-  poseNet = ml5.poseNet('single', modelLoaded);
+  video = createVideo(['gait1.mp4'], videoReady);
+  video.hide();
+  poseNet = ml5.poseNet(video, modelLoaded);
+  poseNet.on('pose',gotPoses);
 
   let options = {
     inputs: 34,
@@ -61,7 +60,6 @@ function videoReady() {
 
 function modelLoaded(){
   console.log('poseNet ready');
-  poseNet.singlePose(img,gotPoses);
 }
 
 function neauralNetworkLoaded() {
@@ -124,7 +122,7 @@ function gotPoses(poses) {
 }
 
 function draw(){
-  image(img,0,0)
+  image(video,0,0)
   if (pose) {
     // key points in skeleton 
     for (let i = 0; i < pose.keypoints.length; i++) {
