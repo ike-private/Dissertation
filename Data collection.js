@@ -3,17 +3,18 @@ let poseNet;
 let pose;
 let skeleton;
 let neuralNetwork;
-let video = 'gait.mp4';
-let targetLabel = 'Normal gait';
+let targetLabel;
 let state = 'waiting';
-
-
+let i;
+let array = [];
 
 async function keyPressed() {
-    if (key == 'r') {
+    if (key == 't') {
+      console.log('training');
       neuralNetwork.normalizeData();
       neuralNetwork.train({epochs: 50}, finished); 
     } else if (key == 's') {
+      console.log('saving');
       neuralNetwork.saveData();
     } else {
       // wait 5 seconds before collecting 
@@ -25,6 +26,7 @@ async function keyPressed() {
   }
 }
 
+
 function delay(time){
     return new Promise((resolve, reject) => {
       if( isNaN(time)){
@@ -35,16 +37,7 @@ function delay(time){
     });
   }
 
-
-function preload(){
-    // Use series of images to get keypoints 
-    img = loadImage('MS gait frames/ezgif-frame-001.jpg');
-}
-// Upload video to get skeleton
-function setup(){
-  createCanvas(1200,800);
-  poseNet = ml5.poseNet('single', modelLoaded);
-
+function preload() {
   let options = {
     inputs: 34,
     outputs: 4,
@@ -54,6 +47,44 @@ function setup(){
   neuralNetwork = ml5.neuralNetwork(options);
 }
 
+function hideUpload() {
+  document.getElementById('labelInterface').style.display = 'none';
+  document.getElementById('fileInterface').style.display = 'block';
+  document.getElementById('returnInterface').style.display = 'block';
+  targetLabel = document.getElementById('target-label').value;
+  console.log(targetLabel);
+}
+
+function returnInterface(){
+  document.getElementById('labelInterface').style.display = 'block';
+  document.getElementById('fileInterface').style.display = 'none';
+  document.getElementById('returnInterface').style.display = 'none';
+  state = 'waiting';
+  setup();
+}
+
+
+// Upload video to get skeleton
+function setup(){
+
+  img = loadImage('MS gait frames/' + 'ezgif-frame-002.jpg');
+  const fileSelector = document.getElementById('file-selector');
+  fileSelector.onchange = async function (event) {
+      const fileList = event.target.files;
+      for(let i = 0; i < fileList.length ; i++ ) {
+          // console.log(fileList[i].name);
+          state = 'collecting';
+          console.log(state);
+          img = loadImage(fileList[i].webkitRelativePath);
+          await delay(2000);
+        
+          createCanvas(1200,800);
+          poseNet = ml5.poseNet('single', modelLoaded);
+          poseNet.on('pose',gotPoses);
+      }
+  }   
+}
+
 function videoReady() {
     video.loop();
     video.volume(0);
@@ -61,7 +92,7 @@ function videoReady() {
 
 function modelLoaded(){
   console.log('poseNet ready');
-  poseNet.singlePose(img,gotPoses);
+  poseNet.singlePose(img);
 }
 
 function neauralNetworkLoaded() {
@@ -84,12 +115,11 @@ function classifyPose() {
     }
 }
 
-function gotResult(error, results) {  
-    if (results[0].confidence > 0.75) {
-      poseLabel = 'G';
-    }
-    classifyPose();
-  }
+function gotResults(error, results) {
+  console.log(results);
+  console.log(results[0].label);
+  classifyPose();
+}
   
 function dataReady() {
     neuralNetwork.normalizeData();
@@ -105,7 +135,6 @@ function finished() {
   }
 
 function gotPoses(poses) {
-    // console.log(poses); 
     if (poses.length > 0) {
       pose = poses[0].pose;
       skeleton = poses[0].skeleton;
@@ -118,8 +147,10 @@ function gotPoses(poses) {
           inputs.push(y);
         }
       let target = [targetLabel];
+      console.log(inputs);
+      console.log(target);
       neuralNetwork.addData(inputs, target);
-    }
+      }
   }
 }
 
@@ -144,4 +175,3 @@ function draw(){
     }
   }
 }
-
