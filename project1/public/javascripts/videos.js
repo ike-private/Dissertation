@@ -1,27 +1,76 @@
-let img;
+// python3 -m http.server run  local server
+let video;
 let poseNet;
 let pose;
 let skeleton;
+let confidence;
+let gaitType;
+let total = 0;
+let state = "not collecting";
+let label;
+let max = 0;
+
 let neuralNetwork;
-// let video = 'gait.mp4';
-let targetLabel = 'Normal gait';
-let state = 'waiting';
+let poseLabel;
+var collectedPoses = [];
+var averages = [];
+let vid;
+
+// function preload() {
+
+//   video.addEventlistener('loadeddata', setup()); 
+// }
+
+function preload() {
+    video = createVideo(['images/N12.mp4'], videoReady);
+    video.hide();
+}
+
+// function setup() {
+// // video = document.getElementById("playVideo");
+// video = document.querySelector('video');
+// // video.hide();
+// video.onloadeddata = (event) => {
+//   console.log('video Loaded')
+//   load();
+//  }
+// }
 
 
-async function keyPressed() {
-    if (key == 'r') {
-        neuralNetwork.normalizeData();
-        neuralNetwork.train({epochs: 50}, finished);
-    } else if (key == 's') {
-        neuralNetwork.saveData();
-    } else {
-        // wait 5 seconds before collecting
-        await delay(5000);
-        state = 'collecting';
-
-        await delay(10000);
-        state = 'waiting';
+function setup() {
+    createCanvas(1200, 800);
+    vid = document.getElementsByTagName('video');
+//  video = createCapture(VIDEO); 
+    // Gets element from html to classify
+    // var video = document.getElementById("video");
+    vid[0].addEventListener("loadeddata",  () => {
+        console.log('loaded');
+        poseNet = ml5.poseNet(video, modelLoaded);
+        poseNet.on('pose', gotPoses);
+    })
+    let options = {
+        inputs: 34,
+        outputs: 4,
+        task: 'classification',
+        debug: true
     }
+    const modelInfo = {
+        model: 'model/model.json',
+        metadata: 'model/model_meta.json',
+        weights: 'model/model.weights.bin',
+    };
+
+    neuralNetwork = ml5.neuralNetwork(options);
+}
+
+function videoReady() {
+    video.loop();
+    video.volume(0);
+}
+
+function NNLoaded() {
+    console.log('pose classification ready!');
+    classifyPose();
 }
 
 function delay(time){
@@ -33,41 +82,18 @@ function delay(time){
         }
     });
 }
+// Once the r key is pressed, the poses will be collected for a set time 
+async function keyPressed() {
+    if (key == 'r') {
+        await delay(5000);
+        state = 'collecting';
 
-
-
-// Upload video to get skeleton
-function setup(){
-    createCanvas(1200,800);
-    video = createVideo(['images/05_01.mp4'], videoReady);
-//   video.hide();
-    console.log(video.src);
-    poseNet = ml5.poseNet(video, modelLoaded);
-    poseNet.on('pose',gotPoses);
-
-    let options = {
-        inputs: 34,
-        outputs: 4,
-        task: 'classification',
-        debug: true
+        await delay(10000);
+        state = 'waiting';
     }
-    neuralNetwork = ml5.neuralNetwork(options);
 }
 
-function videoReady() {
-    video.loop();
-    video.volume(0);
-}
-
-function modelLoaded(){
-    console.log('poseNet ready');
-}
-
-function neauralNetworkLoaded() {
-    console.log('pose classification ready!');
-    classifyPose();
-}
-
+// Classifies all inputs from the video in comparison to those collected 
 function classifyPose() {
     if (pose) {
         let inputs = [];
@@ -77,49 +103,83 @@ function classifyPose() {
             inputs.push(x);
             inputs.push(y);
         }
-        neuralNetwork.classify(inputs, gotResult);
-    } else {
-        setTimeout(classifyPose, 100);
+        neuralNetwork.classify(inputs, collectResult);
+    }else {
+        setTimeout(classifyPose, 1000);
     }
 }
 
-function gotResult(error, results) {
-    if (results[0].confidence > 0.75) {
-        poseLabel = 'G';
-    }
-    classifyPose();
+// Function to collect all the results into an array of poses 
+function collectResult(error, result) {
+    collectedPoses.push(result);
+    console.log(collectedPoses);
 }
 
-function dataReady() {
-    neuralNetwork.normalizeData();
-    neuralNetwork.train({
-        epochs: 50
-    }, finished);
-}
+function gotResult() {
+    console.log('Got results function');
+    //Loop through all collected poses
+    for (let i = 0; i < collectedPoses.length; i++) {
+        label = collectedPoses[i][0].label;
+        confidence = collectedPoses[i][0].confidence;
+        index  = averages.findIndex(p => p.key == label);
+        // If the label already exists in the array, collect and calculate its confidence
+        if (index != -1) {
+            averages[index].cumulativeConfidence +=  confidence ;
+            averages[index].count += 1 ;
+            averages[index].averageConfidence = averages[index].cumulativeConfidence / averages[index].count;
+        }
+        // if the label is not in the array, add it to the array of labels
+        else {
+            averages.push({
+                key: label,
+                // add the value of its confidence to the total of that label
+                cumulativeConfidence: confidence,
+                // count the number of times that label exists
+                count: 1})
 
-function finished() {
-    console.log('model trained');
-    neuralNetwork.save();
-    classifyPose();
-}
-
-function gotPoses(poses) {
-    // console.log(poses);
-    if (poses.length > 0) {
-        pose = poses[0].pose;
-        skeleton = poses[0].skeleton;
-        if (state == 'collecting') {
-            let inputs = [];
-            for (let i = 0; i < pose.keypoints.length; i++) {
-                let x = pose.keypoints[i].position.x;
-                let y = pose.keypoints[i].position.y;
-                inputs.push(x);
-                inputs.push(y);
-            }
-            let target = [targetLabel];
-            neuralNetwork.addData(inputs, target);
         }
     }
+    console.log(averages);
+
+    // Finds the largest confidence score
+    for (let i = 0; i < averages.length; i++) {
+        confidence = averages[index].averageConfidence;
+        if (confidence > max) {
+            max = confidence
+        }
+    }
+
+    // Assigns a label to the largest confidence score
+    if (max > 0.85) {
+        index  = averages.findIndex(p => p.averageConfidence == max);
+        poseLabel = averages[index].key;
+    }
+    console.log(poseLabel)
+}
+
+// Checks if the state of to see if it should classify the poses or display results
+function gotPoses(poses) {
+    if (poses.length > 0 && state == 'collecting') {
+        pose = poses[0].pose;
+        skeleton = poses[0].skeleton;
+        classifyPose();
+    }
+    else if (state == 'waiting') {
+        gotResult();
+        state = "not collecting";
+    }
+}
+
+// function gotPoses(poses) {
+//   if (poses.length > 0) {
+//     pose = poses[0].pose;
+//     skeleton = poses[0].skeleton;
+//   }
+// }
+
+
+function modelLoaded() {
+    console.log('poseNet ready');
 }
 
 function draw(){
@@ -144,3 +204,4 @@ function draw(){
     }
 }
 
+  
