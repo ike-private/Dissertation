@@ -15,9 +15,11 @@ let poseLabels = [];
 let finalLabel;
 var poseData = [];
 let data = [];
+let p = {};
 let poseNormalised;
 let num = 0;
 let vptree ; 
+let posesAndConfidence = [];
 
 function delay(time){
     return new Promise((resolve, reject) => {
@@ -29,10 +31,8 @@ function delay(time){
     });
   }
 
-// video.addEventListener('loadeddata', setup());
 function estimatePose() {
 	video.addEventListener( 'loadeddata' , net.estimateSinglePose(video) 
-		// net.estimateSinglePose(pose2ImageElement)
 	.then(function(pose){
 		video.play();
 	    console.log('collecting poses');
@@ -45,7 +45,7 @@ function estimatePose() {
 		// console.log(elapsed);
 		poseNormalised = normalisePoseToVector(pose);
 		console.log(poseNormalised);
-		poses.push(pose);
+		poses.push(poseNormalised);
 	if (elapsed < video.duration * 1000) {
 		requestAnimationFrame(function() {
 			estimatePose();
@@ -53,23 +53,14 @@ function estimatePose() {
 		})
 	}
 	else if(elapsed > video.duration*1000) {
-		// video.pause();
-		// console.log(poses);
 		console.log('ended');
-		// console.log(poseData);
-		// Build the tree once
-	// loop through array of collected poses and find match for each pose
-	// store labels of all the matches 
-	// Find most frequent label
 		for (let i = 0; i < poses.length; i++) {
 			buildVPTree1();
 			let currentUserPose = poses[i];
-			// console.log(currentUserPose);
 			let closestMatchIndex = findMostSimilarMatch(currentUserPose);
 			let closestMatch = poseData[closestMatchIndex];
-			poseLabels.push(closestMatch);
-			// console.log(poseLabels);
 			console.log(closestMatch);
+			poseLabels.push(closestMatch);
 			if (i == poses.length - 1){
 				finalLabel = getLabel(poseLabels);
 				console.log(finalLabel);
@@ -77,13 +68,6 @@ function estimatePose() {
 		}
 	
 	}	
-
-	// weightedDistance = pns.poseSimilarity(poses, poses ,{ strategy: 'weightedDistance' });
-
-	// console.log(weightedDistance);
-
-
-
 	}));
 }
 
@@ -98,12 +82,20 @@ function getLabel(array) {
 		} 
 		else {
 			dict[item]++;
-			// console.log(item);
 		}
 	
 		if (dict[item] > maxValue) {
 			maxValue = dict[item];
-			label = item;
+			posesAndConfidence.forEach((element) => {
+				// console.log(item.slice(0,34));
+			
+				// if (element.keypoints === item){
+				if	(element.keypoints.sort().join('|') === item.slice(0,34).sort().join('|')){
+					// console.log(element.keypoints);
+					label = element.label
+				}
+			});
+			
 		} 
 		
 	});
@@ -124,50 +116,97 @@ function setup() {
 	  });
 	}))
   }
-$.getJSON("CP.json", function(json) {
-     poseData = json ;
+  
+$.getJSON("N1.json", function(json) {
+     data = json ;
+	 data.forEach((i) => {
+		p = {};
+		p.keypoints = i.keypoints.slice(0, 34);
+		p.confidences = i.keypoints.slice(34, 51);
+		p.confidencesSum = i.keypoints.slice(51, 52) ;
+		p.label = i.label;
+		posesAndConfidence.push(p);
+		// poseData.push(p.keypoints);
+		poseData.push(i.keypoints.slice(0, 52))
+	})
 });
-$.getJSON("stroke.json", function(json) {
-	poseData =  poseData.concat(json) 
-	// console.log(poseData);
-});
-$.getJSON("MS.json", function(json) {
-	poseData = poseData.concat(json) 
-	// console.log(poseData);
-});
-$.getJSON("parkinsons.json", function(json) {
-	poseData = poseData.concat(json) 
-});
-$.getJSON("normal.json", function(json) {
-	poseData = poseData.concat(json)
-});
+// $.getJSON("stroke.json", function(json) {
+// 	poseData =  poseData.concat(json) 
+// 	// console.log(poseData);
+// });
+// $.getJSON("MS.json", function(json) {
+// 	poseData = poseData.concat(json) 
+// 	// console.log(poseData);
+// });
+// $.getJSON("parkinsons.json", function(json) {
+// 	poseData = poseData.concat(json) 
+// });
+// $.getJSON("normal.json", function(json) {
+// 	poseData = poseData.concat(json)
+// });
 // PoseData = poseData.concat(JSON.parse($.getJSON({'url': "normal.json", 'async': false}).responseText));
 
+
+function cosineSim(vectorPose1XY, vectorPose2XY){
+	let v1DotV2 = 0;
+	let absV1 = 0;
+	let absV2 = 0;
+  
+	vectorPose1XY.forEach((v1, index) => {
+	  const v2 = vectorPose2XY[index];
+	  v1DotV2 += v1 * v2;
+	  absV1 += v1 * v1;
+	  absV2 += v2 * v2;
+	})
+	absV1 = Math.sqrt(absV1);
+	absV2 = Math.sqrt(absV2);
+  
+	return v1DotV2 / (absV1 * absV2);
+  }
+
+function weightedDistance(poseVector1, poseVector2) {
+	let vector1PoseXY = poseVector1.slice(0, 34);
+	let vector1Confidences = poseVector1.slice(34, 51);
+	let vector1ConfidenceSum = poseVector1.slice(51, 52);
+  
+	let vector2PoseXY = poseVector2.slice(0, 34);
+  
+	// First summation
+	let summation1 = 1 / vector1ConfidenceSum;
+  
+	// Second summation
+	let summation2 = 0;
+	for (let i = 0; i < vector1PoseXY.length; i++) {
+	  let tempConf = Math.floor(i / 2);
+	  let tempSum = vector1Confidences[tempConf] * Math.abs(vector1PoseXY[i] - vector2PoseXY[i]);
+	  summation2 = summation2 + tempSum;
+	}
+  
+	return summation1 * summation2;
+  }
+
 function cosineDistanceMatching(poseVector1, poseVector2) {
-	// console.log(poseVector1);
-	// console.log(poseVector2);
-    let cosineSimilarity = pns.poseSimilarity(poseVector1, poseVector2, { strategy: 'cosineSimilarity' });
-	// console.log(cosineSimilarity);
-    let distance = 2 * (1 - cosineSimilarity);
-	// console.log(distance);
-    return Math.sqrt(distance);
+	let cosine;
+	cosine = cosineSim(poseVector1, poseVector2);
+    return Math.sqrt(2 * (1 - cosine));
 }
 
+function weightedDistanceMatching(poseVector1, poseVector2) {
+	let weight;
+	weight = weightedDistance(poseVector1, poseVector2);
+    return weight;
+}
 
 function buildVPTree1() {
 	// Initialize our vptree with our images’ pose data and a distance function
 	// console.log(poseData);
-	vptree = buildVPTree(poseData, cosineDistanceMatching);
-	// console.log(vptree);
+	vptree = buildVPTree(poseData, weightedDistanceMatching);
+	// vptree = buildVPTree(poseData, cosineDistanceMatching);
   }
   
   function findMostSimilarMatch(userPose) {
-	// search the vp tree for the image pose that is nearest (in cosine distance) to userPose
 	let nearestImage = vptree.search(userPose);
   
-	// console.log(nearestImage[0].d) // cosine distance value of the nearest match
-  
-	// return index (in relation to poseData) of nearest match. 
 	return nearestImage[0].i; 
   }
 
@@ -192,20 +231,27 @@ function buildVPTree1() {
 	  }
 	}
   }
-  
-function normalisePoseToVector(pose){
-pose.keypoints.forEach((point) => {
-	array = {};
-	const x = point.position.x;
-	const y = point.position.y;
-	poseVector = createVector(x,y);
-	normalised = poseVector.normalize();
-	point.position['x'] = normalised.x
-	point.position['y'] = normalised.y
-})
-	return pose;
-}
-
+  function normalisePoseToVector(pose){
+	let vectorPoseArray = [];
+	let c = 0;
+	// console.log(pose);
+	pose.keypoints.forEach((point) => {
+	  const x = point.position.x;
+	  const y = point.position.y;
+	  poseVector = createVector(x,y);
+	  normalised = poseVector.normalize();
+	  vectorPoseArray.push(normalised.x)
+	  vectorPoseArray.push(normalised.y)
+	})
+	pose.keypoints.forEach((point) => {
+	  const confidence = point.score;
+	  c = c + confidence;
+	  vectorPoseArray.push(confidence);
+	})
+	  vectorPoseArray.push(c);
+	  // console.log(vectorPoseArray);
+	  return vectorPoseArray;
+	}
 
 /*╔═════════════════════════════════════════════════════════════════════════════════════════════════════════╗
  *║                                                                                                         ║

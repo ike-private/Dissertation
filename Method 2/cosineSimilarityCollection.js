@@ -44,7 +44,6 @@ async function keyPressed() {
   }
 }
 
-
 function delay(time){
     return new Promise((resolve, reject) => {
       if( isNaN(time)){
@@ -90,15 +89,12 @@ function setup(){
       const fileList = event.target.files;
       for(let i = 0; i < fileList.length ; i++ ) {
           // console.log(fileList[i].name);
-          await delay(1000);
-          state = 'collecting';
+          createCanvas(1200,600);
+          await delay(500);
           console.log(state);
           video = createVideo([fileList[i].webkitRelativePath], videoReady);
           video.hide()
           console.log(duration);
-          
-        
-          createCanvas(1200,600);
           poseNet = ml5.poseNet(video ,modelLoaded);
           poseNet.on('pose',gotPoses);
           await delay(duration + 1000);
@@ -113,6 +109,7 @@ function videoReady() {
     video.play();
     video.volume(0);
     duration = video.duration()
+    state = 'collecting';
 }
 
 function modelLoaded(){
@@ -127,57 +124,37 @@ function gotPoses(pose) {
       if(state == 'collecting') {
       poseArray = {};
         // console.log(JSON.stringify(poses[0].pose));
-      poseArray['score'] = normalised.score ;
-      poseArray['keypoints'] = normalised.keypoints ;
+      poseArray['keypoints'] = normalised ;
       poseArray['label'] =  targetLabel ;
-      console.log(poseArray);
-      array.push(poseArray);
-      console.log(array);
+      // console.log(poseArray);
+      if (!array.includes(poseArray)){
+         array.push(poseArray);
+         console.log(array);
+       }
       }
   }
 }
 
-// function normalisePoseToVector(pose){
-// 	let count = 0;
-// 	let poseVector;
-// 	let poseVectorXY = [];
-// 	let array = {};
-// 	let position = {};
-// 	let normalised;
-// 	let poseVectorArray = {};
-// 	pose.keypoints.forEach((point) => {
-// 		array = {};
-// 		const x = point.position.x;
-// 		const y = point.position.y;
-// 		poseVector = createVector(x,y);
-// 		normalised = poseVector.normalize();
-// 		position['x'] = normalised.x;
-// 		position['y'] = normalised.y;
-//         // console.log(JSON.stringify(poses[0].pose));
-// 		array['part'] = point.part;
-// 		array['position'] = position;
-// 		array['score'] =  point.score;
-// 		// console.log(array);
-// 		poseVectorXY.push(array);
-// 		count++;
-// 	})
-// 	poseVectorArray['score'] = pose.score;
-// 	poseVectorArray['keypoints'] = poseVectorXY;
-// // poseVectorArray[num] = poseVectorXY;
-// // num++
-// 	return poseVectorArray;
-// }
-
 function normalisePoseToVector(pose){
+  let vectorPoseArray = [];
+  let c = 0;
+  // console.log(pose);
   pose.keypoints.forEach((point) => {
     const x = point.position.x;
     const y = point.position.y;
     poseVector = createVector(x,y);
     normalised = poseVector.normalize();
-    point.position['x'] = normalised.x
-    point.position['y'] = normalised.y
+    vectorPoseArray.push(normalised.x)
+    vectorPoseArray.push(normalised.y)
   })
-    return pose;
+  pose.keypoints.forEach((point) => {
+    const confidence = point.score;
+    c = c + confidence;
+    vectorPoseArray.push(confidence);
+  })
+    vectorPoseArray.push(c);
+    // console.log(vectorPoseArray);
+    return vectorPoseArray;
   }
 
 function draw(){
