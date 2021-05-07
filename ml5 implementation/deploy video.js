@@ -1,4 +1,4 @@
-// python3 -m http.server run  local server
+// python3 -m http.server run  local server46aeaa86e8be9deb71d40c56111fded6bbd9c9
 let poseNet;
 let pose;
 let skeleton;
@@ -122,7 +122,6 @@ function collectResult(error, result) {
     collectedPoses.push(result);
     console.log(result);
 }
-
 function gotResult() {
         console.log('Got results function');
         //Loop through all collected poses 
@@ -147,7 +146,6 @@ function gotResult() {
                 
             }
         }
-
         // Finds the largest confidence score
         for (let i = 0; i < averages.length; i++) {
             confidence = averages[index].averageConfidence;
@@ -155,7 +153,6 @@ function gotResult() {
             if (count > max) {
                 max = count;
                 maxConfidence = confidence;
-            }
         }
 
         // Assigns a label to the largest confidence score 
@@ -167,7 +164,9 @@ function gotResult() {
         }
             console.log(poseLabel)
             document.getElementById("label").innerHTML = "Classification label: " + poseLabel.key+ " | Confidence Score: " + poseLabel.averageConfidence;   
+      }
 }
+
 
 // Checks if the state of to see if it should classify the poses or display results
 function gotPoses(poses) {
@@ -227,5 +226,3 @@ async function draw(){
   }
   
 }
-
-  

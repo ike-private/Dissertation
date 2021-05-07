@@ -1,3 +1,4 @@
+
 var videoTag = document.getElementById('vid');
 let img;
 let poseNet;
@@ -103,7 +104,6 @@ async function playVideo(video) {
 
 
 }
-
 function videoReady() {
     video.play();
     video.volume(0);
