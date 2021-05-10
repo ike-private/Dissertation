@@ -19,7 +19,7 @@
 //     });
 
 // }
-
+var videoTag = document.getElementById('vid');
 let img;
 let poseNet;
 let pose;
@@ -89,19 +89,19 @@ function setup(){
       const fileList = event.target.files;
       for(let i = 0; i < fileList.length ; i++ ) {
           // console.log(fileList[i].name);
-          createCanvas(1200,600);
-          await delay(500);
+          videoElement = document.createElement('video');
+          videoElement.setAttribute('id','video');
+          videoTag.appendChild(videoElement);
+          video = document.getElementById('video');
+          video.setAttribute('src', fileList[i].webkitRelativePath )
+          await delay(2000);
+          video.addEventListener('loadeddata' , await playVideo(video))
+          // await delay(2500);
+          state = 'waiting'; 
           console.log(state);
-          video = createVideo([fileList[i].webkitRelativePath], videoReady);
-          video.hide()
-          console.log(duration);
-          poseNet = ml5.poseNet(video ,modelLoaded);
-          poseNet.on('pose',gotPoses);
-          await delay(duration + 1000);
-          state = 'waiting';
+          videoTag.removeChild(videoTag.childNodes[0]); 
       }
-      console.log('ended');
-
+      console.log('finished');
   }   
 }
 
@@ -112,6 +112,24 @@ function videoReady() {
     state = 'collecting';
 }
 
+async function playVideo(video) {
+  video.width = 1000;
+  video.height = 600;
+  // await delay(200);
+  video.play();
+//  video = createCapture(VIDEO);
+  state = 'collecting';
+  console.log(state);
+  poseNet = ml5.poseNet(video, modelLoaded);
+  poseNet.on('pose', gotPoses);  
+  if (Number.isInteger(video.duration )){
+    await delay(video.duration * 1000);
+  }
+  else {
+    await delay(2000);
+  }
+  // state = 'waiting'; 
+}
 function modelLoaded(){
   console.log('poseNet ready');
 }
@@ -119,17 +137,17 @@ function modelLoaded(){
 function gotPoses(pose) {
   let normalised ;
     if (pose.length > 0) {
-      // poseArray = {};
+      poseArray = {};
       normalised = normalisePoseToVector(pose[0].pose);
       if(state == 'collecting') {
-      poseArray = {};
+      // poseArray = {};
         // console.log(JSON.stringify(poses[0].pose));
       poseArray['keypoints'] = normalised ;
       poseArray['label'] =  targetLabel ;
       // console.log(poseArray);
       if (!array.includes(poseArray)){
          array.push(poseArray);
-         console.log(array);
+         console.log(poseArray);
        }
       }
   }
@@ -157,30 +175,30 @@ function normalisePoseToVector(pose){
     return vectorPoseArray;
   }
 
-function draw(){
-  if (video) {
-  image(video,0,0)
+// function draw(){
+//   if (video) {
+//   image(video,0,0)
   
-  if (pose) {
-    // key points in skeleton 
-    for (let i = 0; i < pose.keypoints.length; i++) {
-      let x = pose.keypoints[i].position.x;
-      let y = pose.keypoints[i].position.y;
-      fill(0,255,0);
-      ellipse(x,y,16,16);
-    }
+//   if (pose) {
+//     // key points in skeleton 
+//     for (let i = 0; i < pose.keypoints.length; i++) {
+//       let x = pose.keypoints[i].position.x;
+//       let y = pose.keypoints[i].position.y;
+//       fill(0,255,0);
+//       ellipse(x,y,16,16);
+//     }
 
-    // Lines in skeleton
-    for (let i = 0; i < skeleton.length; i++) {
-      let a = skeleton[i][0];
-      let b = skeleton[i][1];
-      strokeWeight(2);
-      stroke(255);
-      line(a.position.x, a.position.y, b.position.x, b.position.y);
-    }
-  }
-}
-}
+//     // Lines in skeleton
+//     for (let i = 0; i < skeleton.length; i++) {
+//       let a = skeleton[i][0];
+//       let b = skeleton[i][1];
+//       strokeWeight(2);
+//       stroke(255);
+//       line(a.position.x, a.position.y, b.position.x, b.position.y);
+//     }
+//   }
+// }
+// }
 
 function download(filename, text) {
     var element = document.createElement('a');

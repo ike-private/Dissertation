@@ -44,7 +44,7 @@ function estimatePose() {
 		// poses.push(pose);
 		// console.log(elapsed);
 		poseNormalised = normalisePoseToVector(pose);
-		console.log(poseNormalised);
+		// console.log(poseNormalised);
 		poses.push(poseNormalised);
 	if (elapsed < video.duration * 1000) {
 		requestAnimationFrame(function() {
@@ -59,7 +59,7 @@ function estimatePose() {
 			let currentUserPose = poses[i];
 			let closestMatchIndex = findMostSimilarMatch(currentUserPose);
 			let closestMatch = poseData[closestMatchIndex];
-			console.log(closestMatch);
+			// console.log(closestMatch);
 			poseLabels.push(closestMatch);
 			if (i == poses.length - 1){
 				finalLabel = getLabel(poseLabels);
@@ -91,7 +91,7 @@ function getLabel(array) {
 			
 				// if (element.keypoints === item){
 				if	(element.keypoints.sort().join('|') === item.slice(0,34).sort().join('|')){
-					// console.log(element.keypoints);
+					console.log(element.label);
 					label = element.label
 				}
 			});
@@ -117,9 +117,23 @@ function setup() {
 	}))
   }
   
-$.getJSON("N1.json", function(json) {
+$.getJSON("S1.json", function(json) {
      data = json ;
-	 data.forEach((i) => {
+});
+$.getJSON("CP1.json", function(json) {
+	data =  data.concat(json) 
+	// console.log(poseData);
+});
+$.getJSON("N1.json", function(json) {
+	data = data.concat(json) 
+	// console.log(poseData);
+});
+$.getJSON("P1.json", function(json) {
+	data= data.concat(json) 
+});
+$.getJSON("MS1.json", function(json) {
+	data = data.concat(json)
+	data.forEach((i) => {
 		p = {};
 		p.keypoints = i.keypoints.slice(0, 34);
 		p.confidences = i.keypoints.slice(34, 51);
@@ -130,20 +144,6 @@ $.getJSON("N1.json", function(json) {
 		poseData.push(i.keypoints.slice(0, 52))
 	})
 });
-// $.getJSON("stroke.json", function(json) {
-// 	poseData =  poseData.concat(json) 
-// 	// console.log(poseData);
-// });
-// $.getJSON("MS.json", function(json) {
-// 	poseData = poseData.concat(json) 
-// 	// console.log(poseData);
-// });
-// $.getJSON("parkinsons.json", function(json) {
-// 	poseData = poseData.concat(json) 
-// });
-// $.getJSON("normal.json", function(json) {
-// 	poseData = poseData.concat(json)
-// });
 // PoseData = poseData.concat(JSON.parse($.getJSON({'url': "normal.json", 'async': false}).responseText));
 
 
